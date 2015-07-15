@@ -4,16 +4,23 @@ library(rpart)
 library(randomForest)
 library(Metrics)
 library(caret)
+library(xgboost)
 set.seed(0)
 
 
 train_set <- tbl_df(read.csv('./competition_data/train_set.csv'))
+train_set_supplier_dummies <- tbl_df(read.csv('./train_set_supplier_dummies.csv'))
 tube <- tbl_df(read.csv('./competition_data/tube.csv'))
 
 # train_tube <- dplyr::left_join(train_set, tube, by = 'tube_assembly_id')
-train_tube <- tbl_df(merge(train_set, tube))
+train_tube <- tbl_df(merge(train_set_supplier_dummies, tube))
 
-trainIndex <- createDataPartition(train_tube$cost, p = 0.7, list = FALSE)
+material_na_mask <- is.na(train_tube$material_id)
+train_tube$material_id <- as.character(train_tube$material_id)
+train_tube$material_id[material_na_mask] <- '0'
+train_tube$material_id <- as.factor(train_tube$material_id)
+
+trainIndex <- createDataPartition(train_tube$cost, p = 0.9, list = FALSE)
 
 
 fit <- rpart(cost ~ supplier + annual_usage + quantity +
@@ -24,15 +31,22 @@ fit <- rpart(cost ~ supplier + annual_usage + quantity +
 # in_sample <- predict(fit, newdata = train_tube)
 # rmsle(train_tube$cost, in_sample)
 
-rf.fit <- randomForest(cost ~ annual_usage + quantity +
-                    diameter + wall + length + num_bends + bend_radius +
-                    end_a + end_x + num_boss + num_bracket,
+rf.fit <- randomForest(cost ~ . - tube_assembly_id - quote_date,
                   data = train_tube, subset = trainIndex,
-                  ntree = 100, do.trace = 5)
+                  ntree = 200, do.trace = 5)
 in_sample <- predict(rf.fit, newdata = train_tube[trainIndex, ])
 out_sample <- predict(rf.fit, newdata = train_tube[-trainIndex, ])
 rmsle(train_tube[trainIndex, 'cost'], in_sample)
 rmsle(train_tube[-trainIndex, 'cost'], out_sample)
+
+train_tube_features <- train_tube %>% select(annual_usage, quantity, material_id,
+                        diameter, wall, length, num_bends, bend_radius,
+                        end_a_1x, end_a_2x, end_x_1x, end_x_2x,
+                        end_a, end_x, num_boss, num_bracket) %>% as.matrix()
+train_tube_response <- train_tube$cost
+
+xgboost(data=train_tube_features, label=train_tube_response, nrounds = 10)
+
 # fitControl <- trainControl(## 10-fold CV
 #   method = "repeatedcv",
 #   number = 10,
