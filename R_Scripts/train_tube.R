@@ -12,8 +12,12 @@ train_set <- tbl_df(read.csv('./competition_data/train_set.csv'))
 train_set_supplier_dummies <- tbl_df(read.csv('./train_set_supplier_dummies.csv'))
 tube <- tbl_df(read.csv('./competition_data/tube.csv'))
 
+spec_dummies <- tbl_df(read.csv('./spec_dummies.csv'))
+comp_type_dummies <- tbl_df(read.csv('./comp_type_dummies.csv'))
+
 # train_tube <- dplyr::left_join(train_set, tube, by = 'tube_assembly_id')
 train_tube <- tbl_df(merge(train_set_supplier_dummies, tube))
+train_tube <- tbl_df(merge(train_tube, comp_type_dummies))
 
 material_na_mask <- is.na(train_tube$material_id)
 train_tube$material_id <- as.character(train_tube$material_id)
