@@ -47,13 +47,23 @@ out_sample <- predict(rf.fit, newdata = train_tube[-trainIndex, ])
 rmsle(train_tube[trainIndex, 'cost'], expm1(in_sample))
 rmsle(train_tube[-trainIndex, 'cost'], expm1(out_sample))
 
+
 train_tube_features <- train_tube %>% select(annual_usage, quantity, material_id,
                         diameter, wall, length, num_bends, bend_radius,
                         end_a_1x, end_a_2x, end_x_1x, end_x_2x,
                         end_a, end_x, num_boss, num_bracket) %>% as.matrix()
-train_tube_response <- train_tube$cost
 
-xgboost(data=train_tube_features, label=train_tube_response, nrounds = 10)
+train_tube_sub_train <- train_tube[trainIndex, ]
+train_tube_sub_test <- train_tube[-trainIndex, ]
+train_tube_features <- train_tube_sub_train %>% select(-tube_assembly_id, -cost) %>% as.matrix()
+train_tube_features_test <- train_tube_sub_test %>% select(-tube_assembly_id, -cost) %>% as.matrix()
+train_tube_response <- train_tube_sub_train$cost
+
+tube_xgboost_fit <- xgboost(data=train_tube_features, label=log1p(train_tube_response),
+                            nrounds = 1000, verbose = 0)
+train_tube_response_test <- predict(tube_xgboost_fit, train_tube_features_test)
+rmsle(train_tube[-trainIndex, 'cost'], expm1(train_tube_response_test))
+
 
 # fitControl <- trainControl(## 10-fold CV
 #   method = "repeatedcv",
