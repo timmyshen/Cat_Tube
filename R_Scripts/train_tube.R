@@ -55,8 +55,12 @@ train_tube_features <- train_tube %>% select(annual_usage, quantity, material_id
 
 train_tube_sub_train <- train_tube[trainIndex, ]
 train_tube_sub_test <- train_tube[-trainIndex, ]
-train_tube_features <- train_tube_sub_train %>% select(-tube_assembly_id, -cost) %>% as.matrix()
-train_tube_features_test <- train_tube_sub_test %>% select(-tube_assembly_id, -cost) %>% as.matrix()
+train_tube_features <- train_tube_sub_train %>%
+  select(-tube_assembly_id, -cost) %>%
+  as.matrix()
+train_tube_features_test <- train_tube_sub_test %>%
+  select(-tube_assembly_id, -cost) %>%
+  as.matrix()
 train_tube_response <- train_tube_sub_train$cost
 
 tube_xgboost_fit <- xgboost(data=train_tube_features, label=log1p(train_tube_response),
@@ -64,6 +68,19 @@ tube_xgboost_fit <- xgboost(data=train_tube_features, label=log1p(train_tube_res
 train_tube_response_test <- predict(tube_xgboost_fit, train_tube_features_test)
 rmsle(train_tube[-trainIndex, 'cost'], expm1(train_tube_response_test))
 
+
+test_set <- tbl_df(read.csv('./test_set_no_date_dummies_drop_bracket_no_drop_suppliers.csv'))
+test_tube <- tbl_df(merge(test_set, tube))
+test_tube <- tbl_df(merge(test_tube, comp_type_dummies))
+test_tube <- tbl_df(merge(test_tube, spec_dummies))
+
+test_tube_features <- test_tube %>%
+  select(-tube_assembly_id, -id) %>%
+  as.matrix()
+
+test_tube_response <- predict(tube_xgboost_fit, test_tube_features)
+submit <- test_set %>% select(id) %>% mutate(cost = expm1(test_tube_response))
+write.csv(submit, 'submit.csv', quote = FALSE, row.names = FALSE)
 
 # fitControl <- trainControl(## 10-fold CV
 #   method = "repeatedcv",
