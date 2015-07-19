@@ -48,6 +48,13 @@ rmsle(train_tube[trainIndex, 'cost'], expm1(in_sample))
 rmsle(train_tube[-trainIndex, 'cost'], expm1(out_sample))
 
 
+rf.fit.full <- randomForest(log1p(cost) ~ . - tube_assembly_id,
+                       data = train_tube,
+                       ntree = 250, do.trace = 5)
+in_sample <- predict(rf.fit.full, newdata = train_tube)
+rmsle(train_tube[, 'cost'], expm1(in_sample))
+
+
 train_tube_features <- train_tube %>% select(annual_usage, quantity, material_id,
                         diameter, wall, length, num_bends, bend_radius,
                         end_a_1x, end_a_2x, end_x_1x, end_x_2x,
@@ -69,7 +76,7 @@ train_tube_response_test <- predict(tube_xgboost_fit, train_tube_features_test)
 rmsle(train_tube[-trainIndex, 'cost'], expm1(train_tube_response_test))
 
 
-test_set <- tbl_df(read.csv('./test_set_no_date_dummies_drop_bracket_no_drop_suppliers.csv'))
+test_set <- tbl_df(read.csv('./test_dummies_adjusted.csv'))
 test_tube <- tbl_df(merge(test_set, tube))
 test_tube <- tbl_df(merge(test_tube, comp_type_dummies))
 test_tube <- tbl_df(merge(test_tube, spec_dummies))
@@ -81,6 +88,11 @@ test_tube_features <- test_tube %>%
 test_tube_response <- predict(tube_xgboost_fit, test_tube_features)
 submit <- test_set %>% select(id) %>% mutate(cost = expm1(test_tube_response))
 write.csv(submit, 'submit.csv', quote = FALSE, row.names = FALSE)
+
+
+test_tube_response_rf <- predict(rf.fit.full, newdata = test_tube)
+submit_rf <- test_set %>% select(id) %>% mutate(cost = expm1(test_tube_response_rf))
+write.csv(submit_rf, 'submit_rf.csv', quote = FALSE, row.names = FALSE)
 
 # fitControl <- trainControl(## 10-fold CV
 #   method = "repeatedcv",
