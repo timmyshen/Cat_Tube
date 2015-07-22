@@ -39,9 +39,9 @@ fit <- rpart(cost ~ supplier + annual_usage + quantity +
 # in_sample <- predict(fit, newdata = train_tube)
 # rmsle(train_tube$cost, in_sample)
 
-rf.fit <- randomForest(log1p(cost) ~ . - tube_assembly_id - quote_date,
+rf.fit <- randomForest(log1p(cost) ~ . - tube_assembly_id,
                   data = train_tube, subset = trainIndex,
-                  ntree = 200, do.trace = 5)
+                  ntree = 100, do.trace = 5)
 in_sample <- predict(rf.fit, newdata = train_tube[trainIndex, ])
 out_sample <- predict(rf.fit, newdata = train_tube[-trainIndex, ])
 rmsle(train_tube[trainIndex, 'cost'], expm1(in_sample))
